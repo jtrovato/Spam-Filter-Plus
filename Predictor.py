@@ -15,6 +15,8 @@ class Predictor:
         self.__createdAt = time.strftime("%d %b %H:%M:%S", time.gmtime())
         self.__spamFolder = spamFolder
         self.__hamFolder = hamFolder
+        self.spamProbs;
+        self.hamProbs
         # do training on spam and ham
         self.__train__()
 
@@ -25,18 +27,36 @@ class Predictor:
         for folder in [self.__spamFolder, self.hamFolder]:
             vocab.update(files2countdict(glob.glob(folder+"/*")))
         vocab["UNKNOWN"]=0;
-        vocab = defaultdict(int, zip(vocab.iterkeys(), [0 for i in vocab.values()])
-        #tokenize
+        vocab = defaultdict(int, zip(vocab.iterkeys(), [0 for i in vocab.values()]))
+        
+        classifers = []
         #generate prob models and classifers
-
-        #weighting function
- 
+        for folder in (self.spamFolder self.hamFolder):
+            vocab_countdict = defaultdict(int, vocab)
+            vocab_countdict.update(files2countdict(glob.glob(folder+"/*")))
+            #Smoothing
+            total_vocab_words = sum(vocab_countdict.values())
+            m = 100
+            vocab_countdict = dict((word, countdict[word]+(1.0/m)) for word in vocab_countdict)
+            #calculate probabilities of each word
+            vocab_probdict = dict((word, float(countdict[word])/(total_vocab_words+(len(vocab_countdict)/m))) for word in vocab_countdict)
+            probdict = vocab_probdict;   #weighting function
+            classifiers.append((folder, probdict))
+        
+        self.spamProbs = classifers[0]
+        self.hamProbs = classifers[1]
+    
+    """counts occurences of each token in a list of files""" 
     def files2countdict(filelist):
         d = defaultdict(int)
         tknzr = Tokenizer()
         for f in filelist:
             content = open(f).read()
             tokens = tknzr.tokenize(content)
+            for token in tokens:
+                d[token] += 1
+        return d
+
     def predict(self, filename):
         '''Take in a filename, return whether this file is spam
         return value:
@@ -47,11 +67,19 @@ class Predictor:
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
         test_tokens = tknzr.tokenize(test_content)
-        for c in  
+        predictions = []
+
+        for probdict in [self.spamProbs self.hamProbs]:
+            score = 0
+            for t in test_tokens:
+                try:
+                    score += log(probdict[t])
+                except KeyError:
+                    score += log(probdict["UNKNOWN"])
+            predictions.append(score) 
         
-
-
-        if random.random() <= self.__spamFrequency:
+        #based on scores, is it spam or not?
+        if predictions[0] > predictions[1]
             return True
         else:
             return False
@@ -96,7 +124,7 @@ class Tokenizer():
 
   def tokenize(self, message):
   	header, body = seperateMessage(message)
-  	headerTokens = tokenizeHeaders(header)
+  	headerTokens = tokenizeHeader(header)
   	bodyTokens = tokenizeBody(body)
   	return headerTokens, bodyTokens
 
@@ -127,7 +155,7 @@ class Tokenizer():
     #print tokens
     return tokens
 
-  def tokenizeHeaders(self, message):
+  def tokenizeHeader(self, message):
     tokens = []
     return tokens
 
