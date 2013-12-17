@@ -4,6 +4,7 @@ import math
 import sys
 import glob
 import random
+from collections import defaultdict
 
 
 class Predictor:
@@ -19,14 +20,23 @@ class Predictor:
 
     def __train__(self):
         '''train model on spam and ham'''
-        # implement your own training method here
-
+        #define the vocabularies
+        vocab = defaultdict(int)
+        for folder in [self.__spamFolder, self.hamFolder]:
+            vocab.update(files2countdict(glob.glob(folder+"/*")))
+        vocab["UNKNOWN"]=0;
+        vocab = defaultdict(int, zip(vocab.iterkeys(), [0 for i in vocab.values()])
         #tokenize
-        
         #generate prob models and classifers
 
         #weighting function
-
+ 
+    def files2countdict(filelist):
+        d = defaultdict(int)
+        tknzr = Tokenizer()
+        for f in filelist:
+            content = open(f).read()
+            tokens = tknzr.tokenize(content)
     def predict(self, filename):
         '''Take in a filename, return whether this file is spam
         return value:
