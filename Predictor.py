@@ -1,4 +1,7 @@
 import time
+import re
+import math
+import sys
 import glob
 import random
 
@@ -16,17 +19,13 @@ class Predictor:
 
     def __train__(self):
         '''train model on spam and ham'''
-        # the following code is only an naive example,
-        # implement your own training methond here
-        spamCount = len(glob.glob(self.__spamFolder+'/*'))
-        hamCount = len(glob.glob(self.__hamFolder+'/*'))
-        self.__spamFrequency = 1.0*spamCount/(spamCount+hamCount)
+        # implement your own training method here
 
         #tokenize
-
-        #generate prob models
-
         
+        #generate prob models and classifers
+
+        #weighting function
 
     def predict(self, filename):
         '''Take in a filename, return whether this file is spam
@@ -35,7 +34,10 @@ class Predictor:
         False - filename is not spam (is ham)
         '''
         # do prediction on filename
-        #tokenize test file
+        test_content = open(filename, 'r').read()
+        tknzr = Tokenizer()
+        test_tokens = tknzr.tokenize(test_content)
+        for c in  
         
 
 
@@ -45,9 +47,7 @@ class Predictor:
             return False
 
 ######### REGULAR EXPRESSIONS #########
-url_re = re.compile(r""" \b (?: (?: (https? | ftp) ://)| (?= ftp\.[^\.\s<>"'\x7f-\xff] )| 
-      (?= www\.[^\.\s<>"'\x7f-\xff] ) ) ([^\s<>"'\x7f-\xff]+)
-  """, re.VERBOSE)
+url_re = re.compile(r""" \b (?: (?: (https? | ftp) ://)| (?= ftp\.[^\.\s<>"'\x7f-\xff] )| (?= www\.[^\.\s<>"'\x7f-\xff] ) ) ([^\s<>"'\x7f-\xff]+)""", re.VERBOSE)
 
 html_re = re.compile(r""" < (?![\s<>]) [^>]{0,256} > """, re.VERBOSE | re.DOTALL)
 
@@ -55,6 +55,7 @@ breaking_entity_re = re.compile(r""" &nbsp; | < (?: p | br ) > """, re.VERBOSE)
 
 punctuation_re = re.compile(r'\W+')
 
+#class used to take out unwanted html tags
 class Stripper(object):
     separator = ''
 
@@ -97,12 +98,10 @@ class Tokenizer():
     text = message.lower()
   
     text = url_re.sub(' ', text) #removes URLS
-    text = Stripper(re.compile(r"< \s* style\b [^>]* >", re.VERBOSE).search,
-                          re.compile(r"</style>").search).analyze(text) #removes content between <style> tags
-    text = Stripper(re.compile(r"<!--|<\s*comment\s*[^>]*>").search,
-                          re.compile(r"-->|</comment>").search).analyze(text) #removes content between <comment> tags
-    text = Stripper(re.compile(r"<\s*noframes\s*>").search,
-                          re.compile(r"</noframes\s*>").search).analyze(text) #removes content between <noframes> tags
+    text = Stripper(re.compile(r"< \s* style\b [^>]* >", re.VERBOSE).search,re.compile(r"</style>").search).analyze(text) #removes content between <style> tags
+    text = Stripper(re.compile(r"<!--|<\s*comment\s*[^>]*>").search, re.compile(r"-->|</comment>").search).analyze(text) #removes content between <comment> tags
+    text = Stripper(re.compile(r"<\s*noframes\s*>").search, re.compile(r"</noframes\s*>").search).analyze(text) #removes content between <noframes> tags
+    
     text = breaking_entity_re.sub(' ', text) #removes HTML tags
     text = html_re.sub(' ', text) #removes HTML
     text = punctuation_re.sub(' ', text) #removes punctuation 
@@ -123,4 +122,13 @@ class Tokenizer():
     return tokens
 
 
-
+if __name__ == '__main__':
+   print "usage:", sys.argv[0], "devdir"
+   nbsf = Predictor('hw6-spamham-data/spam/', 'hw6-spamham-data/ham/')
+   testdir = sys.argv[-1]
+   filelist = glob.glob(testdir+"/*")
+   for testfile in filelist
+       print testfile,
+       spam_pred = nbsf.predict(testfile)
+       print spam_pred
+       
