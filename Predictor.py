@@ -1,11 +1,11 @@
 import time
 import re
-import math
+from math import log
 import sys
 import glob
 import random
 from collections import defaultdict
-
+import nltk
 
 class Predictor:
     '''
@@ -15,8 +15,8 @@ class Predictor:
         self.__createdAt = time.strftime("%d %b %H:%M:%S", time.gmtime())
         self.__spamFolder = spamFolder
         self.__hamFolder = hamFolder
-        self.spamProbs;
-        self.hamProbs
+        self.spamProbs = []
+        self.hamProbs = []
         # do training on spam and ham
         self.__train__()
 
@@ -24,35 +24,36 @@ class Predictor:
         '''train model on spam and ham'''
         #define the vocabularies
         vocab = defaultdict(int)
-        for folder in [self.__spamFolder, self.hamFolder]:
-            vocab.update(files2countdict(glob.glob(folder+"/*")))
+        for folder in [self.__spamFolder, self.__hamFolder]:
+            vocab.update(self.files2countdict(glob.glob(folder+"/*")))
         vocab["UNKNOWN"]=0;
         vocab = defaultdict(int, zip(vocab.iterkeys(), [0 for i in vocab.values()]))
         
-        classifers = []
+        classifiers = []
         #generate prob models and classifers
-        for folder in (self.spamFolder self.hamFolder):
+        for folder in (self.__spamFolder, self.__hamFolder):
+            print folder
             vocab_countdict = defaultdict(int, vocab)
-            vocab_countdict.update(files2countdict(glob.glob(folder+"/*")))
+            vocab_countdict.update(self.files2countdict(glob.glob(folder+"/*")))
             #Smoothing
             total_vocab_words = sum(vocab_countdict.values())
             m = 100
-            vocab_countdict = dict((word, countdict[word]+(1.0/m)) for word in vocab_countdict)
+            vocab_countdict = dict((word, vocab_countdict[word]+(1.0/m)) for word in vocab_countdict)
             #calculate probabilities of each word
-            vocab_probdict = dict((word, float(countdict[word])/(total_vocab_words+(len(vocab_countdict)/m))) for word in vocab_countdict)
+            vocab_probdict = dict((word, float(vocab_countdict[word])/(total_vocab_words+(len(vocab_countdict)/m))) for word in vocab_countdict)
             probdict = vocab_probdict;   #weighting function
-            classifiers.append((folder, probdict))
+            classifiers.append(probdict)
         
-        self.spamProbs = classifers[0]
-        self.hamProbs = classifers[1]
+        self.spamProbs = classifiers[0]
+        self.hamProbs = classifiers[1]
     
     """counts occurences of each token in a list of files""" 
-    def files2countdict(filelist):
+    def files2countdict(self, filelist):
         d = defaultdict(int)
         tknzr = Tokenizer()
         for f in filelist:
             content = open(f).read()
-            tokens = tknzr.tokenize(content)
+            tokens = tknzr.tokenizeBody(content)
             for token in tokens:
                 d[token] += 1
         return d
@@ -66,10 +67,11 @@ class Predictor:
         # do prediction on filename
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
-        test_tokens = tknzr.tokenize(test_content)
+        #test_tokens = tknzr.tokenize(test_content)
+        test_tokens = tknzr.tokenizeBody(test_content)
         predictions = []
 
-        for probdict in [self.spamProbs self.hamProbs]:
+        for probdict in [self.spamProbs, self.hamProbs]:
             score = 0
             for t in test_tokens:
                 try:
@@ -79,7 +81,7 @@ class Predictor:
             predictions.append(score) 
         
         #based on scores, is it spam or not?
-        if predictions[0] > predictions[1]
+        if predictions[0] > predictions[1]:
             return True
         else:
             return False
@@ -165,7 +167,21 @@ if __name__ == '__main__':
    nbsf = Predictor('hw6-spamham-data/spam/', 'hw6-spamham-data/ham/')
    testdir = sys.argv[-1]
    filelist = glob.glob(testdir+"/*")
-   for testfile in filelist
+   if test_dir == "hw6-spamham-data/dev":
+       filelist = dict((name[-3:], name) for name in filelist)
+       for num in filelist.keys():
+           value = filelist[num];
+           if num[0:2] == 'ev':
+               filelist['00' + num[2]] = value
+               del filelist[num]
+           elif num[0:1] == 'v':
+               filelist['0' + num[1:]] = value
+               del filelist[num]
+       sorted_filelist = sorted(filelist)
+       filelist_final = list(filelist[key] for key in sorted_filelist)    
+   else:
+       filelist_final = filelist
+   for testfile in filelist_final:
        print testfile,
        spam_pred = nbsf.predict(testfile)
        print spam_pred
