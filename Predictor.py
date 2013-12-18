@@ -53,6 +53,7 @@ class Predictor:
         tknzr = Tokenizer()
         for f in filelist:
             content = open(f).read()
+            #tokens, header_tokens = tknzr.tokenize(content)
             tokens = tknzr.tokenizeBody(content)
             for token in tokens:
                 d[token] += 1
@@ -67,7 +68,7 @@ class Predictor:
         # do prediction on filename
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
-        #test_tokens = tknzr.tokenize(test_content)
+        #test_tokens, header_tokens = tknzr.tokenize(test_content)
         test_tokens = tknzr.tokenizeBody(test_content)
         predictions = []
 
@@ -125,15 +126,17 @@ class Stripper(object):
 class Tokenizer():
 
   def tokenize(self, message):
-  	header, body = seperateMessage(message)
-  	headerTokens = tokenizeHeader(header)
-  	bodyTokens = tokenizeBody(body)
-  	return headerTokens, bodyTokens
+    header, body = self.seperateMessage(message)
+    headerTokens = self.tokenizeHeader(header)
+    bodyTokens = self.tokenizeBody(body)
+    return (headerTokens, bodyTokens)
+
+  def seperateMessage(self, message):
+    splitTuple = message.partition('\r\n\r\n')
+    return (splitTuple[0], splitTuple[2])
 
   def tokenizeBody(self, message):
     tokens = []
-    #mess = open(message).read()
-    #text = mess.lower()
 
     text = message.lower()
   
@@ -159,30 +162,32 @@ class Tokenizer():
 
   def tokenizeHeader(self, message):
     tokens = []
+    tokens = nltk.word_tokenize(message)
     return tokens
 
 
 if __name__ == '__main__':
-   print "usage:", sys.argv[0], "devdir"
-   nbsf = Predictor('hw6-spamham-data/spam/', 'hw6-spamham-data/ham/')
-   testdir = sys.argv[-1]
-   filelist = glob.glob(testdir+"/*")
-   if test_dir == "hw6-spamham-data/dev":
-       filelist = dict((name[-3:], name) for name in filelist)
-       for num in filelist.keys():
-           value = filelist[num];
-           if num[0:2] == 'ev':
-               filelist['00' + num[2]] = value
-               del filelist[num]
-           elif num[0:1] == 'v':
-               filelist['0' + num[1:]] = value
-               del filelist[num]
-       sorted_filelist = sorted(filelist)
-       filelist_final = list(filelist[key] for key in sorted_filelist)    
-   else:
-       filelist_final = filelist
-   for testfile in filelist_final:
-       print testfile,
-       spam_pred = nbsf.predict(testfile)
-       print spam_pred
+    print "usage:", sys.argv[0], "devdir"
+    nbsf = Predictor('hw6-spamham-data/spam/', 'hw6-spamham-data/ham/')
+    testdir = sys.argv[-1]
+    print testdir
+    filelist = glob.glob(testdir+"/*")
+    if testdir == 'hw6-spamham-data/dev/':
+      filelist = dict((name[-3:], name) for name in filelist)
+      for num in filelist.keys():
+        value = filelist[num];
+        if num[0:2] == 'ev':
+            filelist['00' + num[2]] = value
+            del filelist[num]
+        elif num[0:1] == 'v':
+            filelist['0' + num[1:]] = value
+            del filelist[num]
+        sorted_filelist = sorted(filelist)
+        filelist_final = list(filelist[key] for key in sorted_filelist)    
+    else:
+        filelist_final = filelist
+    for testfile in filelist_final:
+        print testfile,
+        spam_pred = nbsf.predict(testfile)
+        print spam_pred
        
