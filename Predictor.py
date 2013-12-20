@@ -6,6 +6,7 @@ import glob
 import random
 from collections import defaultdict
 import nltk
+import copy
 
 class Predictor:
     '''
@@ -17,6 +18,9 @@ class Predictor:
         self.__hamFolder = hamFolder
         self.spamProbs = []
         self.hamProbs = []
+        self.spamSubjectProbs = []
+        self.hamSubjectProbs = []
+        
         # do training on spam and ham
         self.__train__()
 
@@ -53,8 +57,8 @@ class Predictor:
         tknzr = Tokenizer()
         for f in filelist:
             content = open(f).read()
-            #tokens, header_tokens = tknzr.tokenize(content)
-            tokens = tknzr.tokenizeBody(content)
+            tokens, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(content)
+            #tokens = tknzr.tokenizeHeader(content)
             for token in tokens:
                 d[token] += 1
         return d
@@ -68,13 +72,13 @@ class Predictor:
         # do prediction on filename
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
-        #test_tokens, header_tokens = tknzr.tokenize(test_content)
-        test_tokens = tknzr.tokenizeBody(test_content)
+        testTokens, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(test_content)
+        #test_tokens = tknzr.tokenizeHeader(test_content)
         predictions = []
 
         for probdict in [self.spamProbs, self.hamProbs]:
             score = 0
-            for t in test_tokens:
+            for t in testTokens:
                 try:
                     score += log(probdict[t])
                 except KeyError:
@@ -95,6 +99,10 @@ html_re = re.compile(r""" < (?![\s<>]) [^>]{0,256} > """, re.VERBOSE | re.DOTALL
 breaking_entity_re = re.compile(r""" &nbsp; | < (?: p | br ) > """, re.VERBOSE)
 
 punctuation_re = re.compile(r'\W+')
+
+subject_re = re.compile(r'''(?<=subject:)(.*)(?=\r\n)''')
+
+recipient_re = re.compile(r'''(?<=to:)(.*)(?=\r\n)''')
 
 #class used to take out unwanted html tags
 class Stripper(object):
@@ -127,9 +135,9 @@ class Tokenizer():
 
   def tokenize(self, message):
     header, body = self.seperateMessage(message)
-    headerTokens = self.tokenizeHeader(header)
+    subjectTokens, recipientsTokens, numOfRecipients = self.tokenizeHeader(header)
     bodyTokens = self.tokenizeBody(body)
-    return (headerTokens, bodyTokens)
+    return (bodyTokens, subjectTokens, recipientsTokens, numOfRecipients)
 
   def seperateMessage(self, message):
     splitTuple = message.partition('\r\n\r\n')
@@ -161,9 +169,23 @@ class Tokenizer():
     return tokens
 
   def tokenizeHeader(self, message):
-    tokens = []
-    tokens = nltk.word_tokenize(message)
-    return tokens
+
+    text = message.lower()
+    subject = subject_re.findall(text)
+    if (len(subject) > 0):
+        subject = nltk.word_tokenize(subject[0])
+    
+    recipients = recipient_re.findall(text)
+    numOfRecipients = 0
+    recipientsTokens = []
+    if (len(subject) > 0):
+        for recipient in recipients:
+            numOfRecipients += 1
+            recipient = punctuation_re.sub(' ', recipient)
+            recipientsTokens.append(nltk.word_tokenize(recipient))
+    recipientsTokens = [item for sublist in recipientsTokens for item in sublist]
+
+    return (subject, recipientsTokens, numOfRecipients)
 
 
 if __name__ == '__main__':
