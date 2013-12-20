@@ -212,8 +212,7 @@ def classifyFiles(filelist, testdir):
             print 'recognized ' + str(spamcount) + ' spam emails ' + str(percentspam) + '%'
             print 'recognized ' + str(hamcount) + ' ham emails ' + str(percentham) + '%'
         else:
-            print 'spam: ' + str(spamcount) + ' ' + str(percentspam) + '%'
-            print 'ham: ' + str(hamcount) + ' ' + str(percentham) + '%'
+
 
 if __name__ == '__main__':
     print "usage:", sys.argv[0], "devdir"
@@ -254,6 +253,5 @@ if __name__ == '__main__':
         print 'recognized ' + str(spamcount) + ' spam emails ' + str(percentspam) + '%'
         print 'recognized ' + str(hamcount) + ' ham emails ' + str(percentham) + '%'
     else:
-        
-        for testfile in filelist_final
-
+        print 'spam: ' + str(spamcount) + ' ' + str(percentspam) + '%' 
+        print 'ham: ' + str(hamcount) + ' ' + str(percentham) + '%'
