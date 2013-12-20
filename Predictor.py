@@ -20,7 +20,7 @@ class Predictor:
         self.hamProbs = []
         self.spamSubjectProbs = []
         self.hamSubjectProbs = []
-        
+
         # do training on spam and ham
         self.__train__()
 
@@ -57,10 +57,12 @@ class Predictor:
         tknzr = Tokenizer()
         for f in filelist:
             content = open(f).read()
-            tokens, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(content)
+            tokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(content)
             #tokens = tknzr.tokenizeHeader(content)
             for token in tokens:
                 d[token] += 1
+            d['BODYLENGTH'] = bodyLength
+            d['NUMRECIPIENTS'] = numOfRecipients
         return d
 
     def predict(self, filename):
@@ -72,7 +74,7 @@ class Predictor:
         # do prediction on filename
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
-        testTokens, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(test_content)
+        testTokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(test_content)
         #test_tokens = tknzr.tokenizeHeader(test_content)
         predictions = []
 
@@ -136,8 +138,8 @@ class Tokenizer():
   def tokenize(self, message):
     header, body = self.seperateMessage(message)
     subjectTokens, recipientsTokens, numOfRecipients = self.tokenizeHeader(header)
-    bodyTokens = self.tokenizeBody(body)
-    return (bodyTokens, subjectTokens, recipientsTokens, numOfRecipients)
+    bodyTokens, bodyLength = self.tokenizeBody(body)
+    return (bodyTokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients)
 
   def seperateMessage(self, message):
     splitTuple = message.partition('\r\n\r\n')
@@ -147,6 +149,7 @@ class Tokenizer():
     tokens = []
 
     text = message.lower()
+    bodyLength = len(text)
   
     text = url_re.sub(' ', text) #removes URLS
     text = Stripper(re.compile(r"< \s* style\b [^>]* >", re.VERBOSE).search,re.compile(r"</style>").search).analyze(text) #removes content between <style> tags
@@ -165,8 +168,7 @@ class Tokenizer():
           tokens.append(word[:-1])
         else:
           tokens.append(word)
-    #print tokens
-    return tokens
+    return (tokens, bodyLength)
 
   def tokenizeHeader(self, message):
 
@@ -194,7 +196,7 @@ if __name__ == '__main__':
     testdir = sys.argv[-1]
     print testdir
     filelist = glob.glob(testdir+"/*")
-    if testdir == 'hw6-spamham-data/dev/':
+    if testdir == 'hw6-spamham-data/dev':
       filelist = dict((name[-3:], name) for name in filelist)
       for num in filelist.keys():
         value = filelist[num];
