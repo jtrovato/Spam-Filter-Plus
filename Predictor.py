@@ -199,14 +199,18 @@ def classifyFiles(filelist, testdir):
             spam_pred = nbsf.predict(testfile)
             print spam_pred
             
-            
-            if count <= 200:
-                if spam_pred == False:
-                    hamcount += 1
+            if testdir == 'hw6-spamham-data/dev/': 
+                if count <= 200:
+                    if spam_pred == False:
+                        hamcount += 1
+                else:
+                    if spam_pred == True:
+                        spamcount += 1
             else:
+                if spam_pred == False:
+                        hamcount += 1
                 if spam_pred == True:
-                    spamcount += 1
-
+                        spamcount += 1
 
             percentspam = (float(spamcount)/count)*100
             percentham = (float(hamcount)/count)*100
@@ -224,19 +228,16 @@ if __name__ == '__main__':
     print testdir
     filelist = glob.glob(testdir+"/*")
     filelist_final = filelist
-    #if testdir == 'hw6-spamham-data/dev/':
-      filelist = dict((name[-3:], name) for name in filelist)
-      for num in filelist.keys():
+    filelist = dict((name[-3:], name) for name in filelist)
+    for num in filelist.keys():
         value = filelist[num];
-        if num[0:2] == 'ev':
+        if num[0:2] in ['ev', 'am']:
             filelist['00' + num[2]] = value
             del filelist[num]
-        elif num[0:1] == 'v':
+        elif num[0:1] in ['v', 'm']:
             filelist['0' + num[1:]] = value
             del filelist[num]
         sorted_filelist = sorted(filelist)
         filelist_final = list(filelist[key] for key in sorted_filelist)    
-    #else:
-        filelist_final = filelist
 
     classifyFiles(filelist_final, testdir)
