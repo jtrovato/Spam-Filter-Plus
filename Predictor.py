@@ -132,16 +132,15 @@ class Predictor:
                     subscore += log(subdict[t])
                 except KeyError:
                     subscore += log(probdict["UNKNOWN"])
-            print score, subscore, 
             #add in other features
-       
+            score = score + subscore      
             #multiply by P(c)
             if probdict == self.hamProbs:
                 score += log(prob_ham) 
             else:
                 score += log(prob_spam)
             
-            predictions.append(score+subscore)  
+            predictions.append(score)  
             
         #based on scores, is it spam or not?
         if predictions[0] > predictions[1]:
@@ -204,7 +203,8 @@ class Tokenizer():
   def tokenizeBody(self, message):
     tokens = []
 
-    text = message.lower()
+    #text = message.lower()
+    text = message
     #bodyLength = len(text) #chararters
   
     text = url_re.sub(' ', text) #removes URLS
