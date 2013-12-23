@@ -7,6 +7,7 @@ import random
 from collections import defaultdict
 import nltk
 import copy
+import operator
 
 class Predictor:
     '''
@@ -17,7 +18,11 @@ class Predictor:
         self.__spamFolder = spamFolder
         self.__hamFolder = hamFolder
         self.spamProbs = []
+        self.spamSubProbs = []
+        self.spamlength = 0
+        self.hamlength = 0
         self.hamProbs = []
+        self.hamSubProbs = []
         self.spamSubjectProbs = []
         self.hamSubjectProbs = []
 
@@ -28,42 +33,71 @@ class Predictor:
         '''train model on spam and ham'''
         #define the vocabularies
         vocab = defaultdict(int)
+        subvocab = defaultdict(int)
         for folder in [self.__spamFolder, self.__hamFolder]:
-            vocab.update(self.files2countdict(glob.glob(folder+"/*")))
+            body_d, sub_d = self.files2countdict(glob.glob(folder+"/*"))
+            vocab.update(body_d)
+            subvocab.update(sub_d)
         vocab["UNKNOWN"]=0;
+        subvocab['UNKNOWN']=0;
         vocab = defaultdict(int, zip(vocab.iterkeys(), [0 for i in vocab.values()]))
+        subvocab = defaultdict(int, zip(subvocab.iterkeys(), [0 for i in subvocab.values()]))
         
         classifiers = []
         #generate prob models and classifers
         for folder in (self.__spamFolder, self.__hamFolder):
             print folder
             vocab_countdict = defaultdict(int, vocab)
-            vocab_countdict.update(self.files2countdict(glob.glob(folder+"/*")))
-            #Smoothing
+            sub_countdict = defaultdict(int, subvocab)
+            body_d, sub_d = self.files2countdict(glob.glob(folder+"/*"))
+            vocab_countdict.update(body_d)
+            sub_countdict.update(sub_d)
+            #get classifiers that do not need smoothing i.e. length
+            if folder == self.__spamFolder:
+                self.spamLength = vocab_countdict['CLASSLENGTH']
+            else:
+                self.hamLength = vocab_countdict['CLASSLENGTH']
+            del vocab_countdict['CLASSLENGTH']
+            del vocab_countdict['NUMRECIPIENTS']
+            #weight the length of the email
+            
+            #Smoothing 
             total_vocab_words = sum(vocab_countdict.values())
+            total_sub_words = sum(sub_countdict.values())
             m = 100
             vocab_countdict = dict((word, vocab_countdict[word]+(1.0/m)) for word in vocab_countdict)
+            sub_countdict = dict((word, sub_countdict[word]+(1.0/m)) for word in sub_countdict)
             #calculate probabilities of each word
+            
             vocab_probdict = dict((word, float(vocab_countdict[word])/(total_vocab_words+(len(vocab_countdict)/m))) for word in vocab_countdict)
+            sub_probdict =  dict((word, float(sub_countdict[word])/(total_sub_words+(len(sub_countdict)/m))) for word in sub_countdict) 
             probdict = vocab_probdict;   #weighting function
-            classifiers.append(probdict)
+            classifiers.append(vocab_probdict)
+            classifiers.append(sub_probdict)
         
         self.spamProbs = classifiers[0]
-        self.hamProbs = classifiers[1]
+        self.spamSubProbs = classifiers[1]
+        self.hamProbs = classifiers[2]
+        self.hamSubProbs = classifiers[3]
     
     """counts occurences of each token in a list of files""" 
     def files2countdict(self, filelist):
-        d = defaultdict(int)
+        body_d = defaultdict(int)
+        sub_d = defaultdict(int)
         tknzr = Tokenizer()
+        classlength = 0
         for f in filelist:
             content = open(f).read()
             tokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(content)
-            #tokens = tknzr.tokenizeHeader(content)
+            classlength += bodyLength
             for token in tokens:
-                d[token] += 1
-            d['BODYLENGTH'] = bodyLength
-            d['NUMRECIPIENTS'] = numOfRecipients
-        return d
+                body_d[token] += 1
+            
+            body_d['CLASSLENGTH'] = classlength
+            body_d['NUMRECIPIENTS'] = numOfRecipients
+            for token in subjectTokens:
+                sub_d[token] += 1
+        return (body_d, sub_d)
 
     def predict(self, filename):
         '''Take in a filename, return whether this file is spam
@@ -74,19 +108,41 @@ class Predictor:
         # do prediction on filename
         test_content = open(filename, 'r').read()
         tknzr = Tokenizer()
-        testTokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(test_content)
-        #test_tokens = tknzr.tokenizeHeader(test_content)
+        bodyTokens, bodyLength, subjectTokens, recipientsTokens, numOfRecipients = tknzr.tokenize(test_content)
+        prob_spam = float(self.spamLength)/(self.spamLength + self.hamLength)
+        prob_ham = float(self.hamLength)/(self.spamLength + self.hamLength)
         predictions = []
-
-        for probdict in [self.spamProbs, self.hamProbs]:
+        
+        for probdict in [self.spamProbs, self.hamProbs]: #for each class
             score = 0
-            for t in testTokens:
+            subscore = 0
+            if probdict == self.spamProbs:
+                subdict = self.spamSubProbs
+            else:
+                subdict = self.hamSubProbs
+
+            for t in bodyTokens: #for each feature calcualte P(x|c)
                 try:
-                    score += log(probdict[t])
+                    score += log(probdict[t]) #sum the log probs 
                 except KeyError:
                     score += log(probdict["UNKNOWN"])
-            predictions.append(score) 
-        
+
+            for t in subjectTokens:
+                try:
+                    subscore += log(subdict[t])
+                except KeyError:
+                    subscore += log(probdict["UNKNOWN"])
+            print score, subscore, 
+            #add in other features
+       
+            #multiply by P(c)
+            if probdict == self.hamProbs:
+                score += log(prob_ham) 
+            else:
+                score += log(prob_spam)
+            
+            predictions.append(score+subscore)  
+            
         #based on scores, is it spam or not?
         if predictions[0] > predictions[1]:
             return True
@@ -149,7 +205,7 @@ class Tokenizer():
     tokens = []
 
     text = message.lower()
-    bodyLength = len(text)
+    #bodyLength = len(text) #chararters
   
     text = url_re.sub(' ', text) #removes URLS
     text = Stripper(re.compile(r"< \s* style\b [^>]* >", re.VERBOSE).search,re.compile(r"</style>").search).analyze(text) #removes content between <style> tags
@@ -158,16 +214,22 @@ class Tokenizer():
     
     text = breaking_entity_re.sub(' ', text) #removes HTML tags
     text = html_re.sub(' ', text) #removes HTML
-    #text = punctuation_re.sub(' ', text) #removes punctuation 
+    text = punctuation_re.sub(' ', text) #removes punctuation 
 
     interTokens = nltk.word_tokenize(text)
 
     for word in interTokens:
-      if len(word) > 3 and len(word) < 13:
+      
+      if len(word) > 0 and len(word) < 13:
         if word[-1:] == 's':
           tokens.append(word[:-1])
         else:
           tokens.append(word)
+      else:
+        if word == '!':
+          tokens.append(word)
+    
+    bodyLength = len(tokens) #tokens/words
     return (tokens, bodyLength)
 
   def tokenizeHeader(self, message):
